@@ -55,6 +55,7 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
+      # Android SDK jest już zainstalowany na ubuntu-latest (ANDROID_HOME); brakujące składniki Gradle pobierze sam
       - run: npm ci
       - run: npx cap sync android
       # Własny klucz podpisu (opcjonalnie): sekrety ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD

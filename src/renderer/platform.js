@@ -3,7 +3,7 @@
 // i – do podglądu – w zwykłej przeglądarce. Reszta kodu korzysta wyłącznie z window.Platform.
 
 (function () {
-  const APP_VERSION = '1.0.0'; // musi być zgodna z package.json (sprawdza to test)
+  const APP_VERSION = '1.1.0'; // musi być zgodna z package.json (sprawdza to test)
   const cap = window.Capacitor;
   const isElectron = !!window.api;
   const isAndroid = !isElectron && !!cap && cap.isNativePlatform && cap.isNativePlatform();

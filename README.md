@@ -11,6 +11,7 @@ Jeden wspólny interfejs (HTML/JS, wygląd w stylu iOS, po polsku) uruchamiany w
 - **zaszyfrowany sejf**: AES-256-GCM, klucz z hasła głównego przez PBKDF2-SHA256 (600 000 iteracji),
 - automatyczna blokada (bezczynność, aplikacja w tle, zablokowanie komputera), opcjonalne odblokowanie kontem Windows (DPAPI),
 - ukrywanie kodów, czyszczenie schowka po 30 s, ochrona przed zrzutami ekranu (Windows: ochrona okna, Android: FLAG_SECURE),
+- **eksport kodem QR**: pojedyncze konto (dowolna aplikacja 2FA) albo wiele kont naraz w formacie „Przenieś konta” Google Authenticatora,
 - **zaszyfrowane kopie zapasowe** (.json) i eksport do innych aplikacji (lista `otpauth://`),
 - tryb jasny/ciemny, bez internetu – nic nie jest wysyłane poza urządzenie.
 
@@ -62,4 +63,4 @@ Wersję zmieniasz w `package.json` i w `src/renderer/platform.js` (`APP_VERSION`
 | `src/main/main.js`, `src/preload.js` | Electron: okno, zapis plików, schowek, zrzut ekranu, DPAPI |
 | `android/` | projekt Capacitor (FLAG_SECURE, obsługa „Wstecz”, aparat, ikony) |
 
-Biblioteki w `src/renderer/vendor`: [jsQR](https://github.com/cozmo/jsQR) (Apache-2.0), Capacitor core (MIT); czcionka Inter (OFL).
+Biblioteki w `src/renderer/vendor`: [jsQR](https://github.com/cozmo/jsQR) (Apache-2.0), [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (MIT), Capacitor core (MIT); czcionka Inter (OFL).

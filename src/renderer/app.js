@@ -603,10 +603,106 @@
       items: [
         { label: 'Kopiuj kod', icon: 'copy', onClick: () => copyEntry(e) },
         { label: 'Edytuj', icon: 'pencil', onClick: () => openEntryForm(e) },
-        { label: 'Pokaż klucz (do przeniesienia)', icon: 'key', onClick: () => showSecret(e) },
+        { label: 'Eksportuj jako kod QR', icon: 'qr', onClick: () => showAccountQr(e) },
+        { label: 'Pokaż klucz', icon: 'key', onClick: () => showSecret(e) },
         { label: 'Usuń', icon: 'trash', danger: true, onClick: () => removeEntry(e) }
       ]
     });
+  }
+
+  // ───────────────────────── eksport kodem QR ─────────────────────────
+  const QR_WARNING = 'Kod QR zawiera klucz konta – każdy, kto go zeskanuje lub sfotografuje, będzie mógł generować Twoje kody. Pokaż go tylko na chwilę i upewnij się, że nikt nie patrzy na ekran.';
+
+  async function showAccountQr(e) {
+    const ok = await confirm({ title: 'Pokazać kod QR konta?', text: QR_WARNING, ok: 'Pokaż kod' });
+    if (!ok) return;
+    const problem = window.OTP.migrationProblem(e);
+    sheet({
+      title: 'Eksport konta',
+      subtitle: titleOf(e) + (subOf(e) ? ' · ' + subOf(e) : ''),
+      body: h('div', { class: 'qr-export' },
+        window.QR.render(window.OTP.toOtpauth(e)),
+        h('ol', { class: 'qr-steps' },
+          h('li', null, 'Otwórz Google Authenticator (lub inną aplikację 2FA) na drugim urządzeniu.'),
+          h('li', null, 'Dotknij ', h('b', null, '+'), ' → ', h('b', null, 'Zeskanuj kod QR'), '.'),
+          h('li', null, 'Sprawdź, czy kody w obu aplikacjach są takie same.')),
+        problem ? h('div', { class: 'note warn' }, iconEl('warn', 16), h('span', null, `Uwaga: ${problem}. Inne aplikacje (np. Aegis, 2FAS) obsłużą to konto poprawnie.`)) : null),
+      actions: [{ label: 'Gotowe', kind: 'primary' }]
+    });
+  }
+
+  function openGaExport() {
+    if (!S.entries.length) { toast('Nie ma kont do eksportu.', 'error'); return; }
+    const state = sorted().map((e) => ({ e, problem: window.OTP.migrationProblem(e) }));
+    state.forEach((x) => { x.on = !x.problem; });
+    let btn = null;
+    const label = () => `Pokaż kody QR (${state.filter((x) => x.on).length})`;
+    const all = h('input', { type: 'checkbox', class: 'check', checked: state.every((x) => x.on || x.problem), onchange: (ev) => {
+      state.forEach((x, i) => { if (!x.problem) { x.on = ev.target.checked; boxes[i].checked = x.on; } });
+      btn.textContent = label();
+    } });
+    const boxes = [];
+    const rows = state.map((x) => {
+      const cb = h('input', { type: 'checkbox', class: 'check', checked: x.on, disabled: !!x.problem, onchange: (ev) => { x.on = ev.target.checked; btn.textContent = label(); } });
+      boxes.push(cb);
+      return h('label', { class: 'import-row' + (x.problem ? ' disabled' : '') }, cb,
+        h('div', { class: 'avatar sm', style: { background: colorOf(x.e) } }, initials(x.e)),
+        h('div', { class: 'import-main' }, h('div', { class: 'acct-issuer' }, titleOf(x.e)),
+          h('div', { class: 'acct-account' }, x.problem ? 'Niezgodne: ' + x.problem : subOf(x.e))));
+    });
+    const sh = sheet({
+      title: 'Eksport do Google Authenticatora',
+      subtitle: 'Wybierz konta. Zostaną zapisane w kodach QR, które Google Authenticator wczyta jednym skanem (Przenieś konta → Importuj konta).',
+      body: h('div', { class: 'fields' },
+        h('label', { class: 'select-all' }, all, h('span', null, 'Zaznacz wszystkie')),
+        h('div', { class: 'import-list' }, rows)),
+      actions: [
+        { label: 'Anuluj' },
+        {
+          label: label(), kind: 'primary', onClick: async () => {
+            const chosen = state.filter((x) => x.on).map((x) => x.e);
+            if (!chosen.length) { toast('Nie zaznaczono żadnego konta.', 'error'); return false; }
+            const ok = await confirm({ title: 'Pokazać kody QR?', text: QR_WARNING, ok: 'Pokaż kody' });
+            if (!ok) return false;
+            setTimeout(() => showGaBatches(window.OTP.migrationBatches(chosen)), 120);
+          }
+        }
+      ]
+    });
+    btn = sh.panel.querySelector('.sheet-actions .btn.primary');
+  }
+
+  function showGaBatches(batches) {
+    let i = 0;
+    const box = h('div', { class: 'qr-export' });
+    const counter = h('span', { class: 'qr-counter' });
+    const prev = h('button', { class: 'btn lg', type: 'button', onclick: () => go(i - 1) }, iconEl('chevronL', 16), 'Poprzedni');
+    const next = h('button', { class: 'btn lg primary', type: 'button', onclick: () => go(i + 1) }, 'Następny', iconEl('chevronR', 16));
+    const pager = batches.length > 1 ? h('div', { class: 'qr-pager' }, prev, counter, next) : null;
+    const names = h('p', { class: 'qr-names muted' });
+    function go(n) {
+      i = Math.max(0, Math.min(batches.length - 1, n));
+      const b = batches[i];
+      box.replaceChildren(window.QR.render(b.uri), names);
+      names.textContent = b.entries.map(titleOf).join(', ');
+      counter.textContent = `Kod ${i + 1} z ${batches.length}`;
+      prev.disabled = i === 0;
+      next.disabled = i === batches.length - 1;
+    }
+    const total = batches.reduce((n, b) => n + b.entries.length, 0);
+    sheet({
+      title: 'Zeskanuj w Google Authenticatorze',
+      subtitle: `${total} ${total === 1 ? 'konto' : total < 5 ? 'konta' : 'kont'}` + (batches.length > 1 ? ` w ${batches.length} kodach QR – zeskanuj je po kolei.` : ' w jednym kodzie QR.'),
+      body: h('div', { class: 'fields' },
+        box,
+        pager,
+        h('ol', { class: 'qr-steps' },
+          h('li', null, 'W Google Authenticatorze otwórz menu ', h('b', null, '☰'), ' → ', h('b', null, 'Przenieś konta'), ' → ', h('b', null, 'Importuj konta'), '.'),
+          h('li', null, 'Dotknij ', h('b', null, 'Zeskanuj kod QR'), ' i wskaż kod' + (batches.length > 1 ? ' – aplikacja sama poprosi o kolejne.' : '.')),
+          h('li', null, 'Po imporcie porównaj kody w obu aplikacjach.'))),
+      actions: [{ label: 'Gotowe', kind: 'primary' }]
+    });
+    go(0);
   }
 
   async function showSecret(e) {
@@ -765,6 +861,7 @@
     const backup = [
       row('Utwórz zaszyfrowaną kopię', iconEl('chevronR', 16, 'chev'), { icon: 'export', color: '#34c759', onClick: go(openBackup), hint: S.prefs.lastBackup ? 'Ostatnia: ' + new Date(S.prefs.lastBackup).toLocaleDateString('pl-PL') : 'Jeszcze nie utworzono kopii' }),
       row('Importuj z pliku', iconEl('chevronR', 16, 'chev'), { icon: 'import', color: '#007aff', onClick: go(importFromFile), hint: 'Kopia .json, lista otpauth .txt lub obraz QR' }),
+      row('Eksportuj do Google Authenticatora', iconEl('chevronR', 16, 'chev'), { icon: 'qr', color: '#5856d6', onClick: go(openGaExport), hint: 'Kody QR do przeniesienia wielu kont naraz' }),
       row('Eksportuj jako tekst otpauth://', iconEl('chevronR', 16, 'chev'), { icon: 'warn', color: '#ff3b30', onClick: go(exportPlain), hint: 'Niezaszyfrowane – do przeniesienia do innej aplikacji' })
     ];
     const about = [
@@ -823,7 +920,7 @@
   P.on('app:lock', () => lock());
 
   // tryb deweloperski (zrzuty ekranu)
-  window.__app = { S, openAdd, openSettings, openEntryForm, openImportList, openEntryActions, lock, renderList, handleText, persist };
+  window.__app = { S, openGaExport, showGaBatches, showAccountQr, openAdd, openSettings, openEntryForm, openImportList, openEntryActions, lock, renderList, handleText, persist };
 
   init().catch((e) => {
     console.error(e);

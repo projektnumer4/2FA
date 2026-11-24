@@ -116,5 +116,22 @@
     });
   }
 
-  window.QR = { decodeImageSource, decodeBlob, scanCamera, pickFile, iconEl };
+  // Rysuje kod QR jako SVG (zawsze czarne na białym – tak skanuje każdy aparat, także w trybie ciemnym)
+  function render(text, ecc = 'M') {
+    const qr = window.qrcode(0, ecc);
+    qr.addData(text, 'Byte');
+    qr.make();
+    const n = qr.getModuleCount();
+    const q = 4;
+    let d = '';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + q} ${r + q}h1v1h-1z`;
+    }
+    const size = n + 2 * q;
+    const wrap = h('div', { class: 'qr-code', role: 'img', 'aria-label': 'Kod QR' });
+    wrap.innerHTML = `<svg viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+    return wrap;
+  }
+
+  window.QR = { decodeImageSource, decodeBlob, scanCamera, pickFile, render, iconEl };
 })();

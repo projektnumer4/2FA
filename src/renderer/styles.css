@@ -338,3 +338,18 @@ select.input { padding-right: 28px; appearance: none; background-image: url("dat
 /* Electron: arkusze i skaner nie zasłaniają paska tytułu (inaczej przyciski okna i przeciąganie nie działają) */
 .platform-electron .sheet-overlay, .platform-electron .scanner { top: 34px; }
 .platform-electron .sheet-overlay { -webkit-app-region: no-drag; }
+
+/* ───── eksport kodem QR ───── */
+.qr-export { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.qr-code { width: 100%; max-width: 300px; aspect-ratio: 1; background: #fff; border-radius: 18px; padding: 6px; box-shadow: var(--shadow); }
+.qr-code svg { display: block; width: 100%; height: 100%; }
+.qr-names { font-size: 12.5px; text-align: center; line-height: 1.4; }
+.qr-pager { display: flex; align-items: center; gap: 10px; width: 100%; }
+.qr-pager .btn { flex: 1; }
+.qr-counter { font-weight: 650; font-size: 13.5px; white-space: nowrap; color: var(--text-2); }
+.qr-steps { margin: 0; padding: 12px 14px 12px 34px; background: var(--card); border-radius: 12px; font-size: 13.5px; line-height: 1.5; color: var(--text-2); align-self: stretch; }
+.qr-steps li + li { margin-top: 4px; }
+.qr-steps b { color: var(--text); font-weight: 600; }
+.qr-export .note { align-self: stretch; }
+.select-all { display: flex; align-items: center; gap: 12px; padding: 0 14px; font-weight: 600; font-size: 14px; }
+.import-row.disabled { opacity: .55; }

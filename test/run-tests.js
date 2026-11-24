@@ -86,6 +86,42 @@ test('otpauth-migration://: import z Google Authenticatora', () => {
   assert.deepStrictEqual(batch, { size: 1, index: 0 });
 });
 
+test('Eksport do Google Authenticatora: zapis i odczyt otpauth-migration://', () => {
+  const list = [
+    OTP.makeEntry({ issuer: 'Google', account: 'jan@gmail.com', secret: 'JBSWY3DPEHPK3PXP' }),
+    OTP.makeEntry({ issuer: 'Bank Śląski', account: 'Łukasz', secret: 'GEZDGNBVGY3TQOJQ', digits: 8, algorithm: 'SHA256' }),
+    OTP.makeEntry({ issuer: '', account: 'serwer', secret: 'MFRGGZDFMZTWQ2LK', type: 'hotp', counter: 42 })
+  ];
+  const uri = OTP.encodeMigration(list, { size: 1, index: 0, id: 7 });
+  const { entries, batch } = OTP.parseMigration(uri);
+  assert.deepStrictEqual(batch, { size: 1, index: 0 });
+  for (let i = 0; i < list.length; i++) {
+    for (const k of ['issuer', 'account', 'secret', 'digits', 'algorithm', 'type', 'counter']) assert.strictEqual(entries[i][k], list[i][k], `${i}.${k}`);
+  }
+  // wiele kont dzieli się na kilka kodów QR, a każdy da się odczytać
+  const many = Array.from({ length: 25 }, (_, i) => OTP.makeEntry({ issuer: 'Serwis ' + i, account: `uzytkownik${i}@example.com`, secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP' }));
+  const batches = OTP.migrationBatches(many);
+  assert.ok(batches.length > 1);
+  let total = 0;
+  batches.forEach((b, i) => {
+    assert.ok(b.uri.length <= 700 || b.entries.length === 1);
+    const r = OTP.parseMigration(b.uri);
+    assert.deepStrictEqual(r.batch, { size: batches.length, index: i });
+    total += r.entries.length;
+  });
+  assert.strictEqual(total, 25);
+  assert.ok(OTP.migrationProblem(OTP.makeEntry({ secret: 'JBSWY3DPEHPK3PXP', period: 60 })));
+  assert.strictEqual(OTP.migrationProblem(list[0]), null);
+});
+
+test('Generator kodów QR (biblioteka) koduje adres otpauth', () => {
+  const qrcode = require('../src/renderer/vendor/qrcode-generator.js');
+  const qr = qrcode(0, 'M');
+  qr.addData(OTP.encodeMigration([OTP.makeEntry({ issuer: 'X', secret: 'JBSWY3DPEHPK3PXP' })]));
+  qr.make();
+  assert.ok(qr.getModuleCount() >= 21);
+});
+
 test('parseAny: wiele adresów w jednym tekście, błędne pomijane', () => {
   const r = OTP.parseAny('otpauth://totp/A?secret=JBSWY3DPEHPK3PXP\n\notpauth://totp/B?secret=XYZ1\nzwykły tekst');
   assert.strictEqual(r.entries.length, 1);

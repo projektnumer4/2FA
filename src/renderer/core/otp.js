@@ -228,6 +228,67 @@
     return { entries: out, batch };
   }
 
+  // ───── eksport do Google Authenticatora (otpauth-migration://) ─────
+  function pbVarint(n) {
+    const out = [];
+    let v = BigInt(n);
+    do { let b = Number(v & 0x7fn); v >>= 7n; if (v) b |= 0x80; out.push(b); } while (v);
+    return out;
+  }
+  function pbField(no, value) {
+    if (typeof value === 'number' || typeof value === 'bigint') return [...pbVarint((no << 3) | 0), ...pbVarint(value)];
+    const bytes = typeof value === 'string' ? [...new TextEncoder().encode(value)] : [...value];
+    return [...pbVarint((no << 3) | 2), ...pbVarint(bytes.length), ...bytes];
+  }
+  function bytesToB64(bytes) {
+    let s = '';
+    for (const b of bytes) s += String.fromCharCode(b);
+    return btoa(s);
+  }
+
+  // Google Authenticator przyjmuje tylko okres 30 s i 6 albo 8 cyfr
+  function migrationProblem(e) {
+    if (e.type === 'totp' && (e.period || 30) !== 30) return `okres ${e.period} s – Google Authenticator obsługuje tylko 30 s`;
+    if (e.digits === 7) return '7 cyfr – Google Authenticator obsługuje 6 lub 8';
+    return null;
+  }
+
+  function encodeMigration(entries, batch = {}) {
+    const params = entries.map((e) => {
+      const p = [
+        ...pbField(1, base32Decode(e.secret)),
+        ...pbField(2, e.account || e.issuer || 'konto'),
+        ...(e.issuer ? pbField(3, e.issuer) : []),
+        ...pbField(4, { SHA1: 1, SHA256: 2, SHA512: 3 }[e.algorithm] || 1),
+        ...pbField(5, e.digits === 8 ? 2 : 1),
+        ...pbField(6, e.type === 'hotp' ? 1 : 2)
+      ];
+      if (e.type === 'hotp') p.push(...pbField(7, e.counter || 0));
+      return pbField(1, p);
+    });
+    const payload = [
+      ...params.flat(),
+      ...pbField(2, 1),
+      ...pbField(3, batch.size || 1),
+      ...pbField(4, batch.index || 0),
+      ...pbField(5, batch.id || 0)
+    ];
+    return 'otpauth-migration://offline?data=' + encodeURIComponent(bytesToB64(payload));
+  }
+
+  // Dzieli konta na kody QR o rozsądnej wielkości (łatwe do zeskanowania z ekranu)
+  function migrationBatches(entries, maxLen = 550) {
+    const groups = [];
+    let cur = [];
+    for (const e of entries) {
+      if (cur.length && encodeMigration([...cur, e]).length > maxLen) { groups.push(cur); cur = []; }
+      cur.push(e);
+    }
+    if (cur.length) groups.push(cur);
+    const id = (globalThis.crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff) || 1;
+    return groups.map((g, i) => ({ entries: g, uri: encodeMigration(g, { size: groups.length, index: i, id }) }));
+  }
+
   // Rozpoznaje dowolny tekst: otpauth://, otpauth-migration:// albo wiele linii.
   function parseAny(text) {
     const lines = String(text || '').split(/\s+/).map((l) => l.trim()).filter(Boolean);
@@ -253,6 +314,7 @@
   return {
     normalizeSecret, base32Decode, base32Encode, isValidSecret,
     hotp, totpCounter, secondsLeft, codeFor, makeEntry, sameAccount, randomId,
-    parseOtpauth, toOtpauth, parseMigration, parseAny, formatCode
+    parseOtpauth, toOtpauth, parseMigration, parseAny, formatCode,
+    encodeMigration, migrationBatches, migrationProblem
   };
 });

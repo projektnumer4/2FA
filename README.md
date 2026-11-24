@@ -1,7 +1,7 @@
 # 2FA
 
-Autorska aplikacja do kodów weryfikacji dwuetapowej (jak Google Authenticator) na **Windows** i **Androida**.
-Jeden wspólny interfejs (HTML/JS, wygląd w stylu iOS, po polsku) uruchamiany w Electronie (Windows) i w Capacitorze (Android).
+Autorska aplikacja do kodów weryfikacji dwuetapowej (jak Google Authenticator) na **Windows**, **Linuksa** i **Androida**.
+Jeden wspólny interfejs (HTML/JS, wygląd w stylu iOS, po polsku) uruchamiany w Electronie (Windows, Linux) i w Capacitorze (Android).
 
 ## Funkcje
 
@@ -20,9 +20,10 @@ Jeden wspólny interfejs (HTML/JS, wygląd w stylu iOS, po polsku) uruchamiany w
 Każdy push na `main` buduje w GitHub Actions (zakładka **Actions** → ostatnie uruchomienie → *Artifacts*):
 
 - `2FA-windows-portable` – przenośny `2FA-<wersja>-portable.exe` (dane zapisuje w folderze „2FA - dane” obok pliku .exe),
+- `2FA-linux-AppImage` – `2FA-<wersja>-linux-x86_64.AppImage`: nadaj prawo uruchamiania (`chmod +x`) i uruchom; dane trafiają do `~/.config/2FA/dane`,
 - `2FA-android-apk` – `2FA-<wersja>-android.apk` do instalacji na telefonie (trzeba zezwolić na instalację z nieznanych źródeł).
 
-Tag `v*` (np. `v1.0.1`) tworzy wydanie (Release) z oboma plikami.
+Tag `v*` (np. `v1.1.0`) tworzy wydanie (Release) ze wszystkimi trzema plikami.
 
 ## Podpis aplikacji na Androida
 
@@ -47,6 +48,7 @@ npm install
 npm test            # testy silnika (wektory RFC 4226/6238, import, szyfrowanie)
 npm start           # Electron
 npm run dist:win    # przenośny .exe (na Windows)
+npm run dist:linux  # AppImage (na Linuksie)
 npx cap sync android && npx cap open android   # Android Studio
 ```
 

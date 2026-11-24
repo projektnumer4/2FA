@@ -414,6 +414,10 @@
     toast('Szukam kodu QR na ekranie…', 'info', 1800);
     try {
       const shots = await P.captureScreens();
+      if (!shots.length) {
+        toast('System nie udostępnił obrazu ekranu (np. Wayland bez zgody). Zrób zrzut ekranu i użyj „Wczytaj obraz z kodem QR”.', 'error', 6000);
+        return;
+      }
       for (const src of shots) {
         const text = await window.QR.decodeImageSource(src);
         if (text) return handleText(text);
